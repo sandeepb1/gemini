@@ -106,12 +106,16 @@ async def async_update_listener(hass: HomeAssistant, entry: ConfigEntry) -> None
 
 async def _async_register_services(hass: HomeAssistant, entry: ConfigEntry) -> None:
     """Register integration services."""
-    from .services import async_register_services
-    
-    data = hass.data[DOMAIN][entry.entry_id]
-    api_client = data["api_client"]
-    
-    await async_register_services(hass, api_client)
+    try:
+        from .services import async_register_services
+        
+        data = hass.data[DOMAIN][entry.entry_id]
+        api_client = data["api_client"]
+        
+        await async_register_services(hass, api_client)
+        _LOGGER.debug("Services registered successfully for domain: %s", DOMAIN)
+    except Exception as err:
+        _LOGGER.error("Failed to register services for %s: %s", DOMAIN, err)
 
 
 async def async_migrate_entry(hass: HomeAssistant, config_entry: ConfigEntry) -> bool:
