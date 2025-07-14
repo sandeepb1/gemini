@@ -1,0 +1,20 @@
+{
+  "domain": "gemini_ai",
+  "name": "Gemini AI Integration",
+  "codeowners": [],
+  "config_flow": true,
+  "dependencies": [],
+  "documentation": "https://github.com/custom-components/gemini_ai",
+  "iot_class": "cloud_polling",
+  "issue_tracker": "https://github.com/custom-components/gemini_ai/issues",
+  "requirements": [
+    "aiohttp>=3.8.0",
+    "websockets>=10.0"
+  ],
+  "ssdp": [],
+  "zeroconf": [],
+  "homekit": {},
+  "dhcp": [],
+  "usb": [],
+  "version": "1.0.0"
+} 
