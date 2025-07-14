@@ -10,7 +10,6 @@ from homeassistant.components.stt import (
     AudioBitRates,
     AudioChannels,
     AudioCodecs,
-    AudioFormat,
     AudioSampleRates,
     SpeechMetadata,
     SpeechResult,
@@ -106,21 +105,16 @@ class GeminiSTTEntity(SpeechToTextEntity):
         return self._language
 
     @property
-    def supported_formats(self) -> list[AudioFormat]:
+    def supported_formats(self) -> list[str]:
         """Return a list of supported formats."""
-        return [
-            AudioFormat.WAV,
-            AudioFormat.OGG,
-            AudioFormat.FLAC,
-        ]
+        # Simplified to only support WAV as requested
+        return ["wav"]
 
     @property
     def supported_codecs(self) -> list[AudioCodecs]:
         """Return a list of supported codecs."""
         return [
             AudioCodecs.PCM,
-            AudioCodecs.OPUS,
-            AudioCodecs.FLAC,
         ]
 
     @property
@@ -128,8 +122,6 @@ class GeminiSTTEntity(SpeechToTextEntity):
         """Return a list of supported bit rates."""
         return [
             AudioBitRates.BITRATE_16,
-            AudioBitRates.BITRATE_24,
-            AudioBitRates.BITRATE_32,
         ]
 
     @property
@@ -137,9 +129,6 @@ class GeminiSTTEntity(SpeechToTextEntity):
         """Return a list of supported sample rates."""
         return [
             AudioSampleRates.SAMPLERATE_16000,
-            AudioSampleRates.SAMPLERATE_22050,
-            AudioSampleRates.SAMPLERATE_44100,
-            AudioSampleRates.SAMPLERATE_48000,
         ]
 
     @property
@@ -147,7 +136,6 @@ class GeminiSTTEntity(SpeechToTextEntity):
         """Return a list of supported channels."""
         return [
             AudioChannels.CHANNEL_MONO,
-            AudioChannels.CHANNEL_STEREO,
         ]
 
     async def async_process_audio_stream(
@@ -177,14 +165,12 @@ class GeminiSTTEntity(SpeechToTextEntity):
                     result=SpeechResult.ResultType.SUCCESS,
                 )
             
-            # Determine MIME type based on format and codec
-            mime_type = self._get_mime_type(metadata)
+            # Use WAV format
+            mime_type = "audio/wav"
             
             _LOGGER.debug(
-                "Processing audio: %d bytes, format: %s, codec: %s, language: %s",
+                "Processing audio: %d bytes, language: %s",
                 len(audio_data),
-                metadata.format,
-                metadata.codec,
                 metadata.language,
             )
             
@@ -280,23 +266,6 @@ class GeminiSTTEntity(SpeechToTextEntity):
         
         return " ".join(transcription_parts)
 
-    def _get_mime_type(self, metadata: SpeechMetadata) -> str:
-        """Get MIME type based on audio format and codec."""
-        format_mapping = {
-            AudioFormat.WAV: "audio/wav",
-            AudioFormat.OGG: "audio/ogg",
-            AudioFormat.FLAC: "audio/flac",
-        }
-        
-        # Handle codec-specific MIME types
-        if metadata.format == AudioFormat.OGG:
-            if metadata.codec == AudioCodecs.OPUS:
-                return "audio/ogg; codecs=opus"
-            elif metadata.codec == AudioCodecs.VORBIS:
-                return "audio/ogg; codecs=vorbis"
-        
-        return format_mapping.get(metadata.format, "audio/wav")
-
     async def async_transcribe_file(
         self,
         file_path: str,
@@ -317,17 +286,8 @@ class GeminiSTTEntity(SpeechToTextEntity):
             with open(file_path, "rb") as file:
                 audio_data = file.read()
             
-            # Determine MIME type from file extension
-            file_ext = os.path.splitext(file_path)[1].lower()
-            mime_type_mapping = {
-                ".wav": "audio/wav",
-                ".mp3": "audio/mpeg",
-                ".ogg": "audio/ogg",
-                ".flac": "audio/flac",
-                ".m4a": "audio/mp4",
-            }
-            
-            mime_type = mime_type_mapping.get(file_ext, "audio/wav")
+            # Use WAV format
+            mime_type = "audio/wav"
             
             # Use configured language if not specified
             if language is None:
