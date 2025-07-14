@@ -1,0 +1,160 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Gemini AI Integration Setup",
+        "description": "Set up your Gemini AI integration. You'll need an API key from Google AI Studio. Get yours at {docs_url}",
+        "data": {
+          "api_key": "API Key",
+          "name": "Integration Name"
+        }
+      },
+      "models": {
+        "title": "Model Selection",
+        "description": "Choose which Gemini models to use for each service",
+        "data": {
+          "tts_model": "Text-to-Speech Model",
+          "stt_model": "Speech-to-Text Model",
+          "conversation_model": "Conversation Model"
+        }
+      },
+      "voice": {
+        "title": "Voice Configuration",
+        "description": "Configure the default voice settings for text-to-speech",
+        "data": {
+          "default_voice": "Default Voice",
+          "voice_speed": "Voice Speed",
+          "voice_pitch": "Voice Pitch"
+        }
+      },
+      "advanced": {
+        "title": "Advanced Settings",
+        "description": "Configure advanced settings for the conversation agent",
+        "data": {
+          "system_prompt": "System Prompt",
+          "language": "Language"
+        }
+      }
+    },
+    "error": {
+      "cannot_connect": "Failed to connect to Gemini AI API. Please check your internet connection.",
+      "invalid_auth": "Invalid API key. Please check your API key and try again.",
+      "quota_exceeded": "API quota exceeded. Please check your Google AI Studio quota.",
+      "unknown": "Unexpected error occurred. Please try again."
+    },
+    "abort": {
+      "already_configured": "Gemini AI is already configured"
+    }
+  },
+  "options": {
+    "step": {
+      "api_settings": {
+        "title": "API Settings",
+        "description": "Update your Gemini AI API settings",
+        "data": {
+          "api_key": "API Key"
+        }
+      },
+      "model_settings": {
+        "title": "Model Settings",
+        "description": "Update model selections for each service",
+        "data": {
+          "tts_model": "Text-to-Speech Model",
+          "stt_model": "Speech-to-Text Model", 
+          "conversation_model": "Conversation Model"
+        }
+      },
+      "voice_settings": {
+        "title": "Voice & Advanced Settings",
+        "description": "Update voice and conversation settings",
+        "data": {
+          "default_voice": "Default Voice",
+          "voice_speed": "Voice Speed",
+          "voice_pitch": "Voice Pitch", 
+          "system_prompt": "System Prompt",
+          "language": "Language"
+        }
+      }
+    },
+    "error": {
+      "cannot_connect": "Failed to connect to Gemini AI API. Please check your internet connection.",
+      "invalid_auth": "Invalid API key. Please check your API key and try again.",
+      "quota_exceeded": "API quota exceeded. Please check your Google AI Studio quota.",
+      "unknown": "Unexpected error occurred. Please try again."
+    }
+  },
+  "services": {
+    "say": {
+      "name": "Say",
+      "description": "Use Gemini AI to convert text to speech",
+      "fields": {
+        "entity_id": {
+          "name": "Entity",
+          "description": "TTS entity to use"
+        },
+        "message": {
+          "name": "Message",
+          "description": "Text to convert to speech"
+        },
+        "voice": {
+          "name": "Voice",
+          "description": "Voice to use for speech synthesis"
+        },
+        "speed": {
+          "name": "Speed",
+          "description": "Speech speed (0.25 to 4.0)"
+        }
+      }
+    },
+    "transcribe": {
+      "name": "Transcribe",
+      "description": "Use Gemini AI to convert speech to text",
+      "fields": {
+        "entity_id": {
+          "name": "Entity",
+          "description": "STT entity to use"
+        },
+        "audio_file": {
+          "name": "Audio File",
+          "description": "Path to audio file to transcribe"
+        },
+        "language": {
+          "name": "Language",
+          "description": "Language of the audio"
+        }
+      }
+    },
+    "process": {
+      "name": "Process",
+      "description": "Process conversation with Gemini AI",
+      "fields": {
+        "entity_id": {
+          "name": "Entity",
+          "description": "Conversation entity to use"
+        },
+        "text": {
+          "name": "Text",
+          "description": "Text to process"
+        },
+        "conversation_id": {
+          "name": "Conversation ID",
+          "description": "ID to maintain conversation context"
+        }
+      }
+    },
+    "preview_voice": {
+      "name": "Preview Voice",
+      "description": "Preview a voice with sample text",
+      "fields": {
+        "voice": {
+          "name": "Voice",
+          "description": "Voice to preview"
+        },
+        "text": {
+          "name": "Sample Text",
+          "description": "Text to use for preview"
+        }
+      }
+    }
+  }
+} 
