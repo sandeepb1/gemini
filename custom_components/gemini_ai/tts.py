@@ -154,6 +154,14 @@ class GeminiTTSEntity(TextToSpeechEntity):
                 for voice in AVAILABLE_VOICES
             ]
 
+    @property
+    def supported_voices(self) -> list[Voice]:
+        """Return list of supported voices (sync property for WebSocket API)."""
+        return [
+            Voice(voice_id=voice, name=voice)
+            for voice in AVAILABLE_VOICES
+        ]
+
     async def async_get_tts_audio(
         self,
         message: str,
@@ -180,7 +188,10 @@ class GeminiTTSEntity(TextToSpeechEntity):
             cache_entry = self._cache[cache_key]
             if self._is_cache_valid(cache_entry):
                 _LOGGER.debug("Using cached TTS for message: %s", message[:50])
-                return cache_entry["content_type"], cache_entry["data"]
+                # Decode base64 data back to bytes
+                import base64
+                cached_data = base64.b64decode(cache_entry["data"])
+                return cache_entry["content_type"], cached_data
         
         try:
             # Generate speech using API
@@ -197,7 +208,7 @@ class GeminiTTSEntity(TextToSpeechEntity):
                 _LOGGER.warning("Gemini API returned empty audio data, using placeholder")
                 audio_data = self._generate_placeholder_audio(message)
             
-            content_type = "audio/mp3"  # Gemini typically returns MP3
+            content_type = "wav"  # Return codec name for FFmpeg compatibility
             
             # Cache the result
             await self._cache_audio(cache_key, content_type, audio_data)
@@ -208,13 +219,13 @@ class GeminiTTSEntity(TextToSpeechEntity):
             _LOGGER.error("Gemini API error during TTS: %s", err)
             # Generate placeholder audio for errors
             audio_data = self._generate_placeholder_audio(f"Error: {str(err)}")
-            return "audio/mp3", audio_data
+            return "wav", audio_data
             
         except Exception as err:
             _LOGGER.error("Unexpected error during TTS: %s", err)
             # Generate placeholder audio for errors
             audio_data = self._generate_placeholder_audio("Error occurred during speech synthesis")
-            return "audio/mp3", audio_data
+            return "wav", audio_data
 
     def _create_cache_key(
         self,
@@ -236,15 +247,16 @@ class GeminiTTSEntity(TextToSpeechEntity):
     async def _cache_audio(self, cache_key: str, content_type: str, audio_data: bytes) -> None:
         """Cache audio data."""
         import time
+        import base64
         
         # Remove old entries if cache is full
         if len(self._cache) >= MAX_CACHE_SIZE:
             await self._cleanup_cache()
         
-        # Add to cache
+        # Add to cache (encode bytes as base64 for JSON serialization)
         self._cache[cache_key] = {
             "content_type": content_type,
-            "data": audio_data,
+            "data": base64.b64encode(audio_data).decode('utf-8'),
             "timestamp": time.time(),
         }
         
@@ -285,10 +297,46 @@ class GeminiTTSEntity(TextToSpeechEntity):
 
     def _generate_placeholder_audio(self, message: str) -> bytes:
         """Generate placeholder audio data."""
-        # In a real implementation, this could generate a simple beep or silence
-        # For now, return empty bytes as a placeholder
+        # Generate a simple WAV file with silence to avoid FFmpeg errors
         _LOGGER.debug("Generating placeholder audio for: %s", message[:50])
-        return b""
+        
+        # Use the same WAV generation as the API client
+        duration_ms = len(message) * 50  # Scale duration by message length
+        return self._generate_wav_silence(duration_ms)
+    
+    def _generate_wav_silence(self, duration_ms: int) -> bytes:
+        """Generate a WAV file with silence."""
+        import struct
+        
+        # WAV file parameters
+        sample_rate = 22050
+        channels = 1
+        bits_per_sample = 16
+        duration_seconds = min(duration_ms / 1000.0, 3.0)  # Max 3 seconds
+        num_samples = int(sample_rate * duration_seconds)
+        
+        # WAV header
+        wav_header = struct.pack(
+            '<4sI4s4sIHHIIHH4sI',
+            b'RIFF',
+            36 + num_samples * channels * bits_per_sample // 8,
+            b'WAVE',
+            b'fmt ',
+            16,  # PCM
+            1,   # PCM
+            channels,
+            sample_rate,
+            sample_rate * channels * bits_per_sample // 8,
+            channels * bits_per_sample // 8,
+            bits_per_sample,
+            b'data',
+            num_samples * channels * bits_per_sample // 8
+        )
+        
+        # Generate silence (zeros)
+        audio_data = b'\x00' * (num_samples * channels * bits_per_sample // 8)
+        
+        return wav_header + audio_data
 
     async def async_will_remove_from_hass(self) -> None:
         """Clean up when entity is removed."""

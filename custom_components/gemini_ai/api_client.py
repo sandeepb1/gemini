@@ -366,44 +366,52 @@ class GeminiAPIClient:
         speed: float,
     ) -> bytes:
         """Make the actual TTS request using WebSocket."""
-        # For now, we'll use a simple generateContent approach
-        # In a full implementation, this would use the Live API WebSocket
-        url = urljoin(API_BASE_URL, f"models/{model}:generateContent")
-        headers = {
-            "x-goog-api-key": self._api_key,
-            "Content-Type": "application/json",
-        }
+        # Note: Current Gemini API doesn't support direct TTS generation yet
+        # This is a placeholder implementation that would need to be updated
+        # when Google releases the Live API for TTS
         
-        payload = {
-            "contents": [
-                {
-                    "parts": [
-                        {
-                            "text": f"Generate speech audio for the following text with voice '{voice}' at speed {speed}: {text}"
-                        }
-                    ]
-                }
-            ],
-            "generationConfig": {
-                "temperature": 0.1,
-                "maxOutputTokens": 1024,
-            }
-        }
+        _LOGGER.info(
+            "TTS request for text: '%s' with voice: %s, speed: %s (placeholder implementation)",
+            text[:50], voice, speed
+        )
         
-        async with self._session.post(url, headers=headers, json=payload, timeout=REQUEST_TIMEOUT * 2) as response:
-            if response.status == 401:
-                raise GeminiAPIError(ERROR_INVALID_API_KEY)
-            elif response.status == 429:
-                raise GeminiAPIError(ERROR_QUOTA_EXCEEDED)
-            elif response.status == 404:
-                raise GeminiAPIError(ERROR_MODEL_NOT_AVAILABLE)
-            elif response.status >= 400:
-                error_data = await response.text()
-                raise GeminiAPIError(f"API error {response.status}: {error_data}")
-            
-            # For now, return empty bytes as placeholder
-            # In a real implementation, this would return the audio data
-            return b""
+        # Generate a simple WAV file with silence as placeholder
+        # In a real implementation, this would call the Gemini Live API
+        return self._generate_wav_silence(len(text) * 100)  # Scale duration by text length
+
+    def _generate_wav_silence(self, duration_ms: int) -> bytes:
+        """Generate a WAV file with silence."""
+        import struct
+        
+        # WAV file parameters
+        sample_rate = 22050
+        channels = 1
+        bits_per_sample = 16
+        duration_seconds = min(duration_ms / 1000.0, 5.0)  # Max 5 seconds
+        num_samples = int(sample_rate * duration_seconds)
+        
+        # WAV header
+        wav_header = struct.pack(
+            '<4sI4s4sIHHIIHH4sI',
+            b'RIFF',
+            36 + num_samples * channels * bits_per_sample // 8,
+            b'WAVE',
+            b'fmt ',
+            16,  # PCM
+            1,   # PCM
+            channels,
+            sample_rate,
+            sample_rate * channels * bits_per_sample // 8,
+            channels * bits_per_sample // 8,
+            bits_per_sample,
+            b'data',
+            num_samples * channels * bits_per_sample // 8
+        )
+        
+        # Generate silence (zeros)
+        audio_data = b'\x00' * (num_samples * channels * bits_per_sample // 8)
+        
+        return wav_header + audio_data
 
     async def get_available_voices(self) -> List[str]:
         """Get available voices for TTS."""
