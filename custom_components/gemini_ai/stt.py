@@ -7,10 +7,6 @@ import os
 from typing import Any, AsyncIterable, Dict, Optional
 
 from homeassistant.components.stt import (
-    AudioBitRates,
-    AudioChannels,
-    AudioCodecs,
-    AudioSampleRates,
     SpeechMetadata,
     SpeechResult,
     SpeechToTextEntity,
@@ -111,32 +107,24 @@ class GeminiSTTEntity(SpeechToTextEntity):
         return ["wav"]
 
     @property
-    def supported_codecs(self) -> list[AudioCodecs]:
+    def supported_codecs(self) -> list[str]:
         """Return a list of supported codecs."""
-        return [
-            AudioCodecs.PCM,
-        ]
+        return ["pcm"]
 
     @property
-    def supported_bit_rates(self) -> list[AudioBitRates]:
+    def supported_bit_rates(self) -> list[int]:
         """Return a list of supported bit rates."""
-        return [
-            AudioBitRates.BITRATE_16,
-        ]
+        return [16]
 
     @property
-    def supported_sample_rates(self) -> list[AudioSampleRates]:
+    def supported_sample_rates(self) -> list[int]:
         """Return a list of supported sample rates."""
-        return [
-            AudioSampleRates.SAMPLERATE_16000,
-        ]
+        return [16000]
 
     @property
-    def supported_channels(self) -> list[AudioChannels]:
+    def supported_channels(self) -> list[int]:
         """Return a list of supported channels."""
-        return [
-            AudioChannels.CHANNEL_MONO,
-        ]
+        return [1]
 
     async def async_process_audio_stream(
         self,
