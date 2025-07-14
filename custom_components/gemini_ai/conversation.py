@@ -5,10 +5,12 @@ import logging
 from typing import Any, Dict, List, Optional
 
 from homeassistant.components.conversation import ConversationEntity, ConversationInput, ConversationResult
+from homeassistant.components.conversation.const import ConversationEntityFeature
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.storage import Store
+from homeassistant.helpers import intent
 
 from .api_client import GeminiAPIClient, GeminiAPIError
 from .const import (
@@ -112,100 +114,81 @@ class GeminiConversationEntity(ConversationEntity):
 
     async def async_process(self, user_input: ConversationInput) -> ConversationResult:
         """Process a conversation turn."""
-        if not self._conversations_loaded:
-            await self._load_conversations()
-        
         try:
-            # Get or create conversation history
-            conversation_id = user_input.conversation_id or "default"
-            conversation_history = self._conversations.get(conversation_id, [])
-            
-            # Prepare the input text
+            # Extract user text from input
             user_text = user_input.text.strip()
-            
-            _LOGGER.debug(
-                "Processing conversation input: '%s' (conversation_id: %s)",
-                user_text[:100],
-                conversation_id,
-            )
-            
-            # Check for special commands
-            if user_text.lower() in ["clear", "reset", "new conversation"]:
-                # Clear conversation history
-                if conversation_id in self._conversations:
-                    del self._conversations[conversation_id]
-                    await self._save_conversations()
-                
+            if not user_text:
+                response = intent.IntentResponse(language=user_input.language)
+                response.async_set_speech("I'm sorry, I didn't hear anything.")
                 return ConversationResult(
-                    response=ConversationResult.ResponseType.ACTION_DONE,
-                    data={"text": "Conversation history cleared."},
+                    response=response,
+                    conversation_id=user_input.conversation_id,
                 )
-            
-            # Check for intent processing
+
+            # Load conversation history
+            conversation_id = user_input.conversation_id or "default"
+            conversation_history = await self.async_get_conversation_history(conversation_id)
+
+            # Check for specific intents first
             intent_response = await self._process_intent(user_text, conversation_history)
             if intent_response:
+                # Update conversation history
+                conversation_history.append({"role": "user", "content": user_text})
+                conversation_history.append({"role": "assistant", "content": intent_response.response.speech.plain.speech})
+                await self._save_conversations()
+                
                 return intent_response
-            
-            # Generate response using Gemini API
-            response_text = await self._api_client.generate_content(
-                model=self._model,
-                prompt=user_text,
-                system_prompt=self._system_prompt,
-                conversation_history=conversation_history,
-            )
-            
-            if not response_text:
-                response_text = "I'm sorry, I couldn't generate a response."
-            
-            # Update conversation history
-            conversation_history.append({
-                "role": "user",
-                "content": user_text,
-            })
-            conversation_history.append({
-                "role": "assistant", 
-                "content": response_text,
-            })
-            
-            # Limit conversation history size
-            max_history = 20  # Keep last 20 exchanges
-            if len(conversation_history) > max_history:
-                conversation_history = conversation_history[-max_history:]
-            
-            # Store updated conversation
-            self._conversations[conversation_id] = conversation_history
-            await self._save_conversations()
-            
-            # Fire event
-            self._hass.bus.async_fire(
-                EVENT_CONVERSATION_RESPONSE,
-                {
-                    "conversation_id": conversation_id,
-                    "user_input": user_text,
-                    "response": response_text,
-                    "model": self._model,
-                },
-            )
-            
-            _LOGGER.debug("Generated response: %s", response_text[:100])
-            
-            return ConversationResult(
-                response=ConversationResult.ResponseType.ACTION_DONE,
-                data={"text": response_text},
-            )
-            
-        except GeminiAPIError as err:
-            _LOGGER.error("Gemini API error during conversation: %s", err)
-            return ConversationResult(
-                response=ConversationResult.ResponseType.ERROR,
-                data={"text": f"Sorry, I encountered an error: {str(err)}"},
-            )
+
+            # Fall back to general conversation with Gemini
+            try:
+                response_text = await self._api_client.generate_content(
+                    model=self._model,
+                    prompt=user_text,
+                    system_prompt=self._system_prompt,
+                    conversation_history=conversation_history,
+                )
+
+                if not response_text:
+                    response_text = "I'm sorry, I didn't understand that. Could you please rephrase?"
+
+                # Update conversation history
+                conversation_history.append({"role": "user", "content": user_text})
+                conversation_history.append({"role": "assistant", "content": response_text})
+                await self._save_conversations()
+
+                # Fire event for conversation response
+                self._hass.bus.async_fire(
+                    EVENT_CONVERSATION_RESPONSE,
+                    {
+                        "text": response_text,
+                        "conversation_id": conversation_id,
+                        "user_input": user_text,
+                    },
+                )
+
+                response = intent.IntentResponse(language=user_input.language)
+                response.async_set_speech(response_text)
+                return ConversationResult(
+                    response=response,
+                    conversation_id=conversation_id,
+                )
+
+            except GeminiAPIError as err:
+                _LOGGER.error("Error communicating with Gemini API: %s", err)
+                response = intent.IntentResponse(language=user_input.language)
+                response.async_set_speech(f"Sorry, I encountered an error: {str(err)}")
+                return ConversationResult(
+                    response=response,
+                    conversation_id=conversation_id,
+                )
             
         except Exception as err:
             _LOGGER.error("Unexpected error during conversation: %s", err)
+            response = intent.IntentResponse(language=user_input.language)
+            response.async_set_speech("Sorry, I encountered an unexpected error.")
             return ConversationResult(
-                response=ConversationResult.ResponseType.ERROR,
-                data={"text": "Sorry, I encountered an unexpected error."},
+                response=response,
+                conversation_id=user_input.conversation_id,
             )
 
     async def _process_intent(
@@ -250,23 +233,27 @@ class GeminiConversationEntity(ConversationEntity):
         """
         
         try:
-            response = await self._api_client.generate_content(
+            response_text = await self._api_client.generate_content(
                 model=self._model,
                 prompt=control_prompt,
                 system_prompt=self._system_prompt,
                 conversation_history=conversation_history,
             )
             
+            response = intent.IntentResponse(language="en")
+            response.async_set_speech(response_text or "I understand you want to control a device, but I'm still learning how to do that.")
             return ConversationResult(
-                response=ConversationResult.ResponseType.ACTION_DONE,
-                data={"text": response or "I understand you want to control a device, but I'm still learning how to do that."},
+                response=response,
+                conversation_id=None,
             )
             
         except Exception as err:
             _LOGGER.error("Error processing control intent: %s", err)
+            response = intent.IntentResponse(language="en")
+            response.async_set_speech("I understand you want to control something, but I'm having trouble processing that right now.")
             return ConversationResult(
-                response=ConversationResult.ResponseType.ACTION_DONE,
-                data={"text": "I understand you want to control something, but I'm having trouble processing that right now."},
+                response=response,
+                conversation_id=None,
             )
 
     async def _process_weather_intent(
@@ -287,23 +274,27 @@ class GeminiConversationEntity(ConversationEntity):
         """
         
         try:
-            response = await self._api_client.generate_content(
+            response_text = await self._api_client.generate_content(
                 model=self._model,
                 prompt=weather_prompt,
                 system_prompt=self._system_prompt,
                 conversation_history=conversation_history,
             )
             
+            response = intent.IntentResponse(language="en")
+            response.async_set_speech(response_text or "I'd love to help with weather information, but I don't have access to weather data right now.")
             return ConversationResult(
-                response=ConversationResult.ResponseType.ACTION_DONE,
-                data={"text": response or "I'd love to help with weather information, but I don't have access to weather data right now."},
+                response=response,
+                conversation_id=None,
             )
             
         except Exception as err:
             _LOGGER.error("Error processing weather intent: %s", err)
+            response = intent.IntentResponse(language="en")
+            response.async_set_speech("I'd like to help with weather information, but I'm having trouble accessing that right now.")
             return ConversationResult(
-                response=ConversationResult.ResponseType.ACTION_DONE,
-                data={"text": "I'd like to help with weather information, but I'm having trouble accessing that right now."},
+                response=response,
+                conversation_id=None,
             )
 
     async def _process_time_intent(
@@ -326,23 +317,27 @@ class GeminiConversationEntity(ConversationEntity):
         """
         
         try:
-            response = await self._api_client.generate_content(
+            response_text = await self._api_client.generate_content(
                 model=self._model,
                 prompt=time_prompt,
                 system_prompt=self._system_prompt,
                 conversation_history=conversation_history,
             )
             
+            response = intent.IntentResponse(language="en")
+            response.async_set_speech(response_text or f"The current time is {time_info}.")
             return ConversationResult(
-                response=ConversationResult.ResponseType.ACTION_DONE,
-                data={"text": response or f"The current time is {time_info}."},
+                response=response,
+                conversation_id=None,
             )
             
         except Exception as err:
             _LOGGER.error("Error processing time intent: %s", err)
+            response = intent.IntentResponse(language="en")
+            response.async_set_speech(f"The current time is {time_info}.")
             return ConversationResult(
-                response=ConversationResult.ResponseType.ACTION_DONE,
-                data={"text": f"The current time is {time_info}."},
+                response=response,
+                conversation_id=None,
             )
 
     async def _save_conversations(self) -> None:

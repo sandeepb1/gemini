@@ -131,17 +131,7 @@ class GeminiTTSEntity(TextToSpeechEntity):
         return ["voice", "speed", "pitch"]
 
     def get_supported_voices(self, language: str) -> list[Voice]:
-        """Return list of supported voices for given language (sync version)."""
-        # Return default voices immediately for WebSocket API compatibility
-        return [
-            Voice(voice_id=voice, name=voice)
-            for voice in AVAILABLE_VOICES
-        ]
-
-    async def async_get_supported_voices(self, language: str) -> list[Voice]:
         """Return list of supported voices for given language."""
-        # For now, return static voices to avoid API calls during setup
-        # This prevents coroutine serialization issues with WebSocket API
         return [
             Voice(voice_id=voice, name=voice)
             for voice in AVAILABLE_VOICES

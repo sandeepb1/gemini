@@ -10,7 +10,7 @@ from homeassistant.components.stt import (
     AudioBitRates,
     AudioChannels,
     AudioCodecs,
-    AudioFormats,
+    AudioFormat,
     AudioSampleRates,
     SpeechMetadata,
     SpeechResult,
@@ -106,12 +106,12 @@ class GeminiSTTEntity(SpeechToTextEntity):
         return self._language
 
     @property
-    def supported_formats(self) -> list[AudioFormats]:
+    def supported_formats(self) -> list[AudioFormat]:
         """Return a list of supported formats."""
         return [
-            AudioFormats.WAV,
-            AudioFormats.OGG,
-            AudioFormats.FLAC,
+            AudioFormat.WAV,
+            AudioFormat.OGG,
+            AudioFormat.FLAC,
         ]
 
     @property
@@ -283,13 +283,13 @@ class GeminiSTTEntity(SpeechToTextEntity):
     def _get_mime_type(self, metadata: SpeechMetadata) -> str:
         """Get MIME type based on audio format and codec."""
         format_mapping = {
-            AudioFormats.WAV: "audio/wav",
-            AudioFormats.OGG: "audio/ogg",
-            AudioFormats.FLAC: "audio/flac",
+            AudioFormat.WAV: "audio/wav",
+            AudioFormat.OGG: "audio/ogg",
+            AudioFormat.FLAC: "audio/flac",
         }
         
         # Handle codec-specific MIME types
-        if metadata.format == AudioFormats.OGG:
+        if metadata.format == AudioFormat.OGG:
             if metadata.codec == AudioCodecs.OPUS:
                 return "audio/ogg; codecs=opus"
             elif metadata.codec == AudioCodecs.VORBIS:
