@@ -1,0 +1,144 @@
+say:
+  name: Say
+  description: Use Gemini AI to convert text to speech
+  fields:
+    message:
+      name: Message
+      description: Text to convert to speech
+      required: true
+      selector:
+        text:
+          multiline: true
+    voice:
+      name: Voice
+      description: Voice to use for speech synthesis
+      default: "Aoede"
+      selector:
+        select:
+          options:
+            - "Aoede"
+            - "Charon"
+            - "Fenrir"
+            - "Kore"
+            - "Puck"
+    speed:
+      name: Speed
+      description: Speech speed (0.25 to 4.0)
+      default: 1.0
+      selector:
+        number:
+          min: 0.25
+          max: 4.0
+          step: 0.25
+          mode: slider
+    cache:
+      name: Cache
+      description: Whether to cache the generated audio
+      default: true
+      selector:
+        boolean:
+    language:
+      name: Language
+      description: Language code for the text
+      default: "en"
+      selector:
+        text:
+
+transcribe:
+  name: Transcribe
+  description: Use Gemini AI to convert speech to text
+  fields:
+    audio_file:
+      name: Audio File
+      description: Path to audio file to transcribe
+      required: true
+      selector:
+        text:
+    language:
+      name: Language
+      description: Language of the audio (optional, auto-detected if not specified)
+      selector:
+        text:
+    model:
+      name: Model
+      description: Gemini model to use for transcription
+      default: "gemini-2.0-flash"
+      selector:
+        select:
+          options:
+            - "gemini-2.0-flash"
+            - "gemini-1.5-flash"
+
+process:
+  name: Process
+  description: Process conversation with Gemini AI
+  fields:
+    text:
+      name: Text
+      description: Text to process
+      required: true
+      selector:
+        text:
+          multiline: true
+    conversation_id:
+      name: Conversation ID
+      description: ID to maintain conversation context
+      default: "default"
+      selector:
+        text:
+    system_prompt:
+      name: System Prompt
+      description: Custom system prompt for this conversation
+      selector:
+        text:
+          multiline: true
+    language:
+      name: Language
+      description: Language code for the conversation
+      default: "en"
+      selector:
+        text:
+    model:
+      name: Model
+      description: Gemini model to use for conversation
+      default: "gemini-2.0-flash"
+      selector:
+        select:
+          options:
+            - "gemini-2.0-flash"
+            - "gemini-1.5-flash"
+            - "gemini-1.5-pro"
+
+preview_voice:
+  name: Preview Voice
+  description: Preview a voice with sample text
+  fields:
+    voice:
+      name: Voice
+      description: Voice to preview
+      required: true
+      selector:
+        select:
+          options:
+            - "Aoede"
+            - "Charon"
+            - "Fenrir"
+            - "Kore"
+            - "Puck"
+    text:
+      name: Sample Text
+      description: Text to use for preview
+      default: "Hello, this is a voice preview."
+      selector:
+        text:
+          multiline: true
+    speed:
+      name: Speed
+      description: Speech speed for preview (0.25 to 4.0)
+      default: 1.0
+      selector:
+        number:
+          min: 0.25
+          max: 4.0
+          step: 0.25
+          mode: slider 
